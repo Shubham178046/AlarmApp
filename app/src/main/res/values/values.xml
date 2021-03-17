@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+
+    <plurals name="minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+
+    <plurals name="seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string-array name="days_abbreviated">
+        <item>M</item>
+        <item>Tu</item>
+        <item>W</item>
+        <item>Th</item>
+        <item>F</item>
+        <item>Sa</item>
+        <item>Su</item>
+    </string-array>
+
+    <array name="week_day_letters">
+        <item>@string/monday_letter</item>
+        <item>@string/tuesday_letter</item>
+        <item>@string/wednesday_letter</item>
+        <item>@string/thursday_letter</item>
+        <item>@string/friday_letter</item>
+        <item>@string/saturday_letter</item>
+        <item>@string/sunday_letter</item>
+    </array>
+    <array name="week_days_short">
+        <item>@string/monday_short</item>
+        <item>@string/tuesday_short</item>
+        <item>@string/wednesday_short</item>
+        <item>@string/thursday_short</item>
+        <item>@string/friday_short</item>
+        <item>@string/saturday_short</item>
+        <item>@string/sunday_short</item>
+    </array>
+</resources>
