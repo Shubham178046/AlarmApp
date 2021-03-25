@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Looper
@@ -16,7 +17,6 @@ import android.os.PowerManager
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -58,19 +58,31 @@ import com.agppratham.demo.Constants.WEDNESDAY_BIT
 import com.agppratham.demo.Constants.isOreoPlus
 import com.agppratham.demo.MainActivity
 import com.agppratham.demo.R
+import com.agppratham.demo.alarm.data.service.HideAlarmService
 import com.agppratham.demo.model.Alarm
 import com.agppratham.demo.model.AlarmSound
 import com.agppratham.demo.receiver.HideAlarmReceiver
 import java.util.*
 import kotlin.math.pow
+
+var player: MediaPlayer? = MediaPlayer()
 val Context.baseConfig: BaseConfig get() = BaseConfig.newInstance(this)
 fun Context.getSharedPrefs() = getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE)
 val Context.dbHelper: DBHelper get() = DBHelper.newInstance(applicationContext)
 fun Context.isScreenOn() = (getSystemService(Context.POWER_SERVICE) as PowerManager).isScreenOn
 fun Context.getLaunchIntent() = packageManager.getLaunchIntentForPackage(baseConfig.appId)
-fun Context.isBlackAndWhiteTheme() = baseConfig.textColor == Color.WHITE && baseConfig.primaryColor == Color.BLACK && baseConfig.backgroundColor == Color.BLACK
-fun Context.getAdjustedPrimaryColor() = if (isBlackAndWhiteTheme()) Color.WHITE else baseConfig.primaryColor
-fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(0, getDefaultAlarmTitle(type), getDefaultAlarmUri(type).toString())
+fun Context.isBlackAndWhiteTheme() =
+    baseConfig.textColor == Color.WHITE && baseConfig.primaryColor == Color.BLACK && baseConfig.backgroundColor == Color.BLACK
+
+fun Context.getAdjustedPrimaryColor() =
+    if (isBlackAndWhiteTheme()) Color.WHITE else baseConfig.primaryColor
+
+fun Context.getDefaultAlarmSound(type: Int) = AlarmSound(
+    0, getDefaultAlarmTitle(type), getDefaultAlarmUri(
+        type
+    ).toString()
+)
+
 fun Context.getPermissionString(id: Int) = when (id) {
     PERMISSION_READ_STORAGE -> Manifest.permission.READ_EXTERNAL_STORAGE
     PERMISSION_WRITE_STORAGE -> Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -89,14 +101,45 @@ fun Context.getPermissionString(id: Int) = when (id) {
     PERMISSION_READ_PHONE_STATE -> Manifest.permission.READ_PHONE_STATE
     else -> ""
 }
-fun Context.hasPermission(permId: Int) = ContextCompat.checkSelfPermission(this, getPermissionString(permId)) == PackageManager.PERMISSION_GRANTED
+
+fun Context.hasPermission(permId: Int) = ContextCompat.checkSelfPermission(
+    this, getPermissionString(
+        permId
+    )
+) == PackageManager.PERMISSION_GRANTED
+
 fun Context.createNewAlarm(timeInMinutes: Int, weekDays: Int): Alarm {
     val defaultAlarmSound = getDefaultAlarmSound(ALARM_SOUND_TYPE_ALARM)
-    return Alarm(0, timeInMinutes, weekDays, false, false, defaultAlarmSound.title, defaultAlarmSound.uri, "")
+    return Alarm(
+        0,
+        timeInMinutes,
+        weekDays,
+        false,
+        false,
+        defaultAlarmSound.title,
+        defaultAlarmSound.uri,
+        ""
+    )
+}
+fun Context.getHideAlarmPendingIntent(context: Context,alarm: com.agppratham.demo.alarm.data.Alarm): PendingIntent {
+    val intent = Intent(this, HideAlarmService::class.java)
+    intent.putExtra(ALARM_ID, alarm.notificationId())
+    return PendingIntent.getBroadcast(this, alarm.notificationId(), intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
 
+fun Context.getDefaultAlarmUri(type: Int) =
+    RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
 
-fun Context.getDefaultAlarmUri(type: Int) = RingtoneManager.getDefaultUri(if (type == ALARM_SOUND_TYPE_NOTIFICATION) RingtoneManager.TYPE_NOTIFICATION else RingtoneManager.TYPE_ALARM)
+fun Context.startAlarmSound(context: Context, url: Uri) {
+    player = MediaPlayer.create(context, url)
+    player!!.start()
+}
+
+fun Context.stopAlarmSound() {
+    if (player != null) {
+        player!!.stop()
+    }
+}
 
 fun Context.getDefaultAlarmTitle(type: Int): String {
     val alarmString = getString(R.string.alarm)
@@ -106,19 +149,26 @@ fun Context.getDefaultAlarmTitle(type: Int): String {
         alarmString
     }
 }
+
 fun getTomorrowBit(): Int {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.DAY_OF_WEEK, 1)
     val dayOfWeek = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
     return 2.0.pow(dayOfWeek).toInt()
 }
+
 fun Context.grantReadUriPermission(uriString: String) {
     try {
         // ensure custom reminder sounds play well
-        grantUriPermission("com.android.systemui", Uri.parse(uriString), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        grantUriPermission(
+            "com.android.systemui",
+            Uri.parse(uriString),
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
     } catch (ignored: Exception) {
     }
 }
+
 fun isOnMainThread() = Looper.myLooper() == Looper.getMainLooper()
 
 fun ensureBackgroundThread(callback: () -> Unit) {
@@ -130,13 +180,17 @@ fun ensureBackgroundThread(callback: () -> Unit) {
         callback()
     }
 }
+
 fun Context.getAlarmIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, AlarmReceiver::class.java)
     intent.putExtra(ALARM_ID, alarm.id)
     return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
+
 fun Context.getNextAlarm(): String {
-    val milliseconds = (getSystemService(Context.ALARM_SERVICE) as AlarmManager).nextAlarmClock?.triggerTime ?: return ""
+    val milliseconds =
+        (getSystemService(Context.ALARM_SERVICE) as AlarmManager).nextAlarmClock?.triggerTime
+            ?: return ""
     val calendar = Calendar.getInstance()
     val isDaylightSavingActive = TimeZone.getDefault().inDaylightTime(Date())
     var offset = calendar.timeZone.rawOffset
@@ -150,10 +204,12 @@ fun Context.getNextAlarm(): String {
     val formatted = getFormattedTime(((milliseconds + offset) / 1000L).toInt(), false, false)
     return "$dayOfWeek $formatted"
 }
+
 fun Context.cancelAlarmClock(alarm: Alarm) {
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     alarmManager.cancel(getAlarmIntent(alarm))
 }
+
 fun Context.showAlarmNotification(alarm: Alarm) {
     val pendingIntent = getOpenAlarmTabIntent()
     val notification = getAlarmNotification(pendingIntent, alarm)
@@ -164,9 +220,15 @@ fun Context.showAlarmNotification(alarm: Alarm) {
         scheduleNextAlarm(alarm, false)
     }
 }
+
 fun Context.getOpenAlarmTabIntent(): PendingIntent {
     val intent = getLaunchIntent() ?: Intent(this, MainActivity::class.java)
-    return PendingIntent.getActivity(this, OPEN_ALARMS_TAB_INTENT_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    return PendingIntent.getActivity(
+        this,
+        OPEN_ALARMS_TAB_INTENT_ID,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT
+    )
 }
 
 @SuppressLint("NewApi")
@@ -186,7 +248,8 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
 
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val importance = NotificationManager.IMPORTANCE_HIGH
         NotificationChannel(channelId, label, importance).apply {
             setBypassDnd(true)
@@ -208,7 +271,7 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
         .setDefaults(Notification.DEFAULT_LIGHTS)
         .setAutoCancel(true)
         .setChannelId(channelId)
-       // .addAction(R.drawable.ic_snooze_vector, getString(R.string.snooze), getSnoozePendingIntent(alarm))
+        // .addAction(R.drawable.ic_snooze_vector, getString(R.string.snooze), getSnoozePendingIntent(alarm))
         .addAction(R.drawable.ic_cross_vector, getString(R.string.dismiss), dismissIntent)
         .setDeleteIntent(dismissIntent)
 
@@ -227,16 +290,25 @@ fun Context.getAlarmNotification(pendingIntent: PendingIntent, alarm: Alarm): No
     notification.flags = notification.flags or Notification.FLAG_INSISTENT
     return notification
 }
+
 fun getCurrentDayMinutes(): Int {
     val calendar = Calendar.getInstance()
     return calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
 }
+
 fun Context.setupAlarmClock(alarm: Alarm, triggerInSeconds: Int) {
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val targetMS = System.currentTimeMillis() + triggerInSeconds * 1000
-    AlarmManagerCompat.setAlarmClock(alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(alarm))
+    AlarmManagerCompat.setAlarmClock(
+        alarmManager, targetMS, getOpenAlarmTabIntent(), getAlarmIntent(
+            alarm
+        )
+    )
 }
-fun Context.formatMinutesToTimeString(totalMinutes: Int) = formatSecondsToTimeString(totalMinutes * 60)
+
+fun Context.formatMinutesToTimeString(totalMinutes: Int) =
+    formatSecondsToTimeString(totalMinutes * 60)
+
 fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
     val days = totalSeconds / DAY_SECONDS
     val hours = (totalSeconds % DAY_SECONDS) / HOUR_SECONDS
@@ -254,12 +326,24 @@ fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
     }
 
     if (minutes > 0) {
-        val minutesString = String.format(resources.getQuantityString(R.plurals.minutes, minutes, minutes))
+        val minutesString = String.format(
+            resources.getQuantityString(
+                R.plurals.minutes,
+                minutes,
+                minutes
+            )
+        )
         timesString.append("$minutesString, ")
     }
 
     if (seconds > 0) {
-        val secondsString = String.format(resources.getQuantityString(R.plurals.seconds, seconds, seconds))
+        val secondsString = String.format(
+            resources.getQuantityString(
+                R.plurals.seconds,
+                seconds,
+                seconds
+            )
+        )
         timesString.append(secondsString)
     }
 
@@ -269,9 +353,14 @@ fun Context.formatSecondsToTimeString(totalSeconds: Int): String {
     }
     return result
 }
+
 fun Context.showRemainingTimeMessage(totalMinutes: Int) {
-    val fullString = String.format(getString(R.string.alarm_goes_off_in), formatMinutesToTimeString(totalMinutes))
-    Toast.makeText(this,fullString,Toast.LENGTH_LONG).show()
+    val fullString = String.format(
+        getString(R.string.alarm_goes_off_in), formatMinutesToTimeString(
+            totalMinutes
+        )
+    )
+    Toast.makeText(this, fullString, Toast.LENGTH_LONG).show()
 }
 
 fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
@@ -298,7 +387,8 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
             val currentDay = (calendar.get(Calendar.DAY_OF_WEEK) + 5) % 7
             val isCorrectDay = alarm.days and 2.0.pow(currentDay).toInt() != 0
             if (isCorrectDay && (alarm.timeInMinutes > currentTimeInMinutes || i > 0)) {
-                val triggerInMinutes = alarm.timeInMinutes - currentTimeInMinutes + (i * DAY_MINUTES)
+                val triggerInMinutes =
+                    alarm.timeInMinutes - currentTimeInMinutes + (i * DAY_MINUTES)
                 setupAlarmClock(alarm, triggerInMinutes * 60 - calendar.get(Calendar.SECOND))
 
                 if (showToast) {
@@ -311,22 +401,37 @@ fun Context.scheduleNextAlarm(alarm: Alarm, showToast: Boolean) {
         }
     }
 }
+
 fun Context.hideNotification(id: Int) {
-    val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val manager =
+        applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     manager.cancel(id)
 }
+
 fun Context.getHideAlarmPendingIntent(alarm: Alarm): PendingIntent {
     val intent = Intent(this, HideAlarmReceiver::class.java)
     intent.putExtra(ALARM_ID, alarm.id)
     return PendingIntent.getBroadcast(this, alarm.id, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 }
 
-fun Context.formatTo12HourFormat(showSeconds: Boolean, hours: Int, minutes: Int, seconds: Int): String {
+fun Context.formatTo12HourFormat(
+    showSeconds: Boolean,
+    hours: Int,
+    minutes: Int,
+    seconds: Int
+): String {
     val appendable = getString(if (hours >= 12) R.string.p_m else R.string.a_m)
     val newHours = if (hours == 0 || hours == 12) 12 else hours % 12
     return "${formatTime(showSeconds, false, newHours, minutes, seconds)} $appendable"
 }
-fun formatTime(showSeconds: Boolean, use24HourFormat: Boolean, hours: Int, minutes: Int, seconds: Int): String {
+
+fun formatTime(
+    showSeconds: Boolean,
+    use24HourFormat: Boolean,
+    hours: Int,
+    minutes: Int,
+    seconds: Int
+): String {
     val hoursFormat = if (use24HourFormat) "%02d" else "%01d"
     var format = "$hoursFormat:%02d"
 
@@ -337,7 +442,12 @@ fun formatTime(showSeconds: Boolean, use24HourFormat: Boolean, hours: Int, minut
         String.format(format, hours, minutes)
     }
 }
-fun Context.getFormattedTime(passedSeconds: Int, showSeconds: Boolean, makeAmPmSmaller: Boolean): SpannableString {
+
+fun Context.getFormattedTime(
+    passedSeconds: Int,
+    showSeconds: Boolean,
+    makeAmPmSmaller: Boolean
+): SpannableString {
     val use24HourFormat = baseConfig.use24HourFormat
     val hours = (passedSeconds / 3600) % 24
     val minutes = (passedSeconds / 60) % 60
@@ -347,7 +457,12 @@ fun Context.getFormattedTime(passedSeconds: Int, showSeconds: Boolean, makeAmPmS
         val formattedTime = formatTo12HourFormat(showSeconds, hours, minutes, seconds)
         val spannableTime = SpannableString(formattedTime)
         val amPmMultiplier = if (makeAmPmSmaller) 0.4f else 1f
-        spannableTime.setSpan(RelativeSizeSpan(amPmMultiplier), spannableTime.length - 5, spannableTime.length, 0)
+        spannableTime.setSpan(
+            RelativeSizeSpan(amPmMultiplier),
+            spannableTime.length - 5,
+            spannableTime.length,
+            0
+        )
         spannableTime
     } else {
         val formattedTime = formatTime(showSeconds, use24HourFormat, hours, minutes, seconds)
@@ -364,6 +479,7 @@ fun getPassedSeconds(): Int {
     }
     return ((calendar.timeInMillis + offset) / 1000).toInt()
 }
+
 fun Context.rescheduleEnabledAlarms() {
     dbHelper.getEnabledAlarms().forEach {
         if (it.days != TODAY_BIT || it.timeInMinutes > getCurrentDayMinutes()) {
@@ -371,6 +487,7 @@ fun Context.rescheduleEnabledAlarms() {
         }
     }
 }
+
 fun Context.checkAlarmsWithDeletedSoundUri(uri: String) {
     val defaultAlarmSound = getDefaultAlarmSound(ALARM_SOUND_TYPE_ALARM)
     dbHelper.getAlarmsWithUri(uri).forEach {
@@ -379,8 +496,17 @@ fun Context.checkAlarmsWithDeletedSoundUri(uri: String) {
         dbHelper.updateAlarm(it)
     }
 }
+
 fun Context.getSelectedDaysString(bitMask: Int): String {
-    val dayBits = arrayListOf(MONDAY_BIT, TUESDAY_BIT, WEDNESDAY_BIT, THURSDAY_BIT, FRIDAY_BIT, SATURDAY_BIT, SUNDAY_BIT)
+    val dayBits = arrayListOf(
+        MONDAY_BIT,
+        TUESDAY_BIT,
+        WEDNESDAY_BIT,
+        THURSDAY_BIT,
+        FRIDAY_BIT,
+        SATURDAY_BIT,
+        SUNDAY_BIT
+    )
     val weekDays = resources.getStringArray(R.array.week_days_short).toList() as ArrayList<String>
 
     if (baseConfig.isSundayFirst) {

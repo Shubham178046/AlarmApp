@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.agppratham.demo.alarm.data.AlarmSong
 import kotlinx.android.synthetic.main.item_list.view.*
 
 class MusicAdapter(var context: Context, var list: ArrayList<MusicList>, var onClick: OnClick) : RecyclerView.Adapter<MusicAdapter.viewVH>() {
@@ -23,7 +24,7 @@ class MusicAdapter(var context: Context, var list: ArrayList<MusicList>, var onC
         holder.itemView.txtName.setText(list.get(position).title)
 
         holder.itemView.setOnClickListener {
-            onClick.onClick(list.get(position).path)
+            onClick.onClick(list.get(position))
             holder.itemView.txtName.setBackgroundColor(ContextCompat.getColor(context, R.color.grey))
         }
     }
@@ -33,6 +34,6 @@ class MusicAdapter(var context: Context, var list: ArrayList<MusicList>, var onC
     }
 
     interface OnClick{
-        fun onClick(text : String)
+        fun onClick(song: MusicList)
     }
 }

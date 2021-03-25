@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.agppratham.demo.alarm.data.AlarmSong
 import kotlinx.android.synthetic.main.activity_music_list.*
 import java.io.File
 
@@ -19,14 +20,14 @@ import java.io.File
 class MusicListActivity : AppCompatActivity() {
 
     var list: ArrayList<String> = ArrayList()
-    var musicList : ArrayList<MusicList> = ArrayList()
-
+    var musicList: ArrayList<MusicList> = ArrayList()
+    var alarmSong: AlarmSong = AlarmSong()
+    var day : Int= -1
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_music_list)
-        GetAllMediaMp3Files()
+        day = intent.getIntExtra("day",-1)
         storagePermissen()
-
     }
 
     private fun storagePermissen() {
@@ -41,15 +42,19 @@ class MusicListActivity : AppCompatActivity() {
                     Manifest.permission.READ_EXTERNAL_STORAGE,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ),
-                1
+                101
             )
         } else {
+            GetAllMediaMp3Files()
             rvMusic.layoutManager = LinearLayoutManager(this)
             var adp = MusicAdapter(this, musicList, object : MusicAdapter.OnClick {
-                override fun onClick(text: String) {
-                    PrefUtils.setURI(this@MusicListActivity, text)
+                override fun onClick(song: MusicList) {
+                    alarmSong.id = day
+                    alarmSong.title = song.title
+                    alarmSong.uri = song.path
+                    PrefUtils.setURI(this@MusicListActivity, song.path)
                     val resultIntent = Intent()
-                    resultIntent.putExtra("text", text)
+                    resultIntent.putExtra("alarmSong", alarmSong)
                     setResult(RESULT_OK, resultIntent)
                     finish()
                 }
@@ -65,17 +70,19 @@ class MusicListActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         when (requestCode) {
-            1 -> {
-
+            101 -> {
                 if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(this, "Please grant permissen", Toast.LENGTH_LONG).show()
                 } else {
+                    GetAllMediaMp3Files()
                     rvMusic.layoutManager = LinearLayoutManager(this)
                     var adp = MusicAdapter(this, musicList, object : MusicAdapter.OnClick {
-                        override fun onClick(text: String) {
-                            PrefUtils.setURI(this@MusicListActivity, text)
+                        override fun onClick(song: MusicList) {
+                            alarmSong.title = song.title
+                            alarmSong.uri = song.path
+                            PrefUtils.setURI(this@MusicListActivity, song.path)
                             val resultIntent = Intent()
-                            resultIntent.putExtra("text", text)
+                            resultIntent.putExtra("alarmSong", alarmSong)
                             setResult(RESULT_OK, resultIntent)
                             finish()
                         }
@@ -114,7 +121,7 @@ class MusicListActivity : AppCompatActivity() {
                 val songUrl = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DATA))
                 Log.d("SONGPATH", "GetAllMediaMp3Files: " + songUrl)
                 list.add(SongTitle)
-                var music : MusicList = MusicList()
+                var music: MusicList = MusicList()
                 music.title = SongTitle
                 music.path = songUrl
                 musicList.add(music)

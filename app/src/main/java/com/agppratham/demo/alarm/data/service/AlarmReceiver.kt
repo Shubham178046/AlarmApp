@@ -6,7 +6,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
@@ -14,14 +17,20 @@ import android.util.Log
 import androidx.annotation.NonNull
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import com.agppratham.demo.BuildConfig
 import com.agppratham.demo.R
 import com.agppratham.demo.alarm.data.Alarm
 import com.agppratham.demo.alarm.data.activity.AlarmLandingPageActivity.Companion.launchIntent
 import com.agppratham.demo.alarm.data.util.AlarmUtils
+import com.agppratham.demo.helper.getHideAlarmPendingIntent
+import com.agppratham.demo.helper.startAlarmSound
+import java.io.File
 import java.util.*
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
+        var path: String? = ""
         val alarm: Alarm? = intent!!.getBundleExtra(BUNDLE_EXTRA)!!.getParcelable(ALARM_KEY)
         if (alarm == null) {
             Log.e(
@@ -31,6 +40,42 @@ class AlarmReceiver : BroadcastReceiver() {
             )
             return
         }
+        val calendar = Calendar.getInstance()
+        val day = calendar[Calendar.DAY_OF_WEEK]
+        if (day == Alarm.MON) {
+            path = alarm.moN_SONG
+        } else if (day == Alarm.TUES) {
+            path = alarm.tueS_SONG
+
+        } else if (day == Alarm.WED) {
+            path = alarm.weD_SONG
+
+        } else if (day == Alarm.THURS) {
+            path = alarm.thruS_SONG
+        } else if (day == Alarm.FRI) {
+            path = alarm.frI_SONG
+
+        } else if (day == Alarm.SAT) {
+            path = alarm.saT_SONG
+
+        }
+        /*RingtoneManager.setActualDefaultRingtoneUri(context,RingtoneManager.TYPE_ALARM,
+           Uri.parse(path))*/
+        var notification: Uri? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            notification =
+                FileProvider.getUriForFile(
+                    context!!,
+                    BuildConfig.APPLICATION_ID + ".provider",
+                    File(path)
+                )
+        } else {
+            notification = Uri.fromFile(File(path)) // 3
+        }
+        if (notification != null) {
+            context!!.startAlarmSound(context, notification)
+        }
+
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -47,16 +92,23 @@ class AlarmReceiver : BroadcastReceiver() {
         builder.setContentText(alarm.label)
         builder.setTicker(alarm.label)
         builder.setVibrate(longArrayOf(1000, 500, 1000, 500, 1000, 500))
-        builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+        builder.setSound(Uri.parse(path))
         builder.setContentIntent(
             launchAlarmLandingPage(
                 context,
                 alarm
             )
         )
+        val dismissIntent = context.getHideAlarmPendingIntent(context, alarm)
         builder.setAutoCancel(true)
         builder.setPriority(Notification.PRIORITY_HIGH)
-
+        builder.addAction(
+            R.drawable.ic_cross_vector,
+            context.resources.getString(R.string.dismiss),
+            dismissIntent
+        )
+        builder.setDeleteIntent(dismissIntent)
+        builder.setSound(notification, AudioManager.STREAM_ALARM)
         manager.notify(id, builder.build())
 
         //Reset Alarm manually
@@ -64,6 +116,7 @@ class AlarmReceiver : BroadcastReceiver() {
         //Reset Alarm manually
         setReminderAlarm(context, alarm)
     }
+
     companion object {
         private val TAG: String =
             AlarmReceiver::class.java.getSimpleName()
@@ -148,13 +201,13 @@ class AlarmReceiver : BroadcastReceiver() {
             val dayOfWeek = c[Calendar.DAY_OF_WEEK]
             var startIndex = 0
             when (dayOfWeek) {
-                Calendar.MONDAY -> startIndex = 0
-                Calendar.TUESDAY -> startIndex = 1
-                Calendar.WEDNESDAY -> startIndex = 2
-                Calendar.THURSDAY -> startIndex = 3
-                Calendar.FRIDAY -> startIndex = 4
-                Calendar.SATURDAY -> startIndex = 5
-                Calendar.SUNDAY -> startIndex = 6
+                Calendar.MONDAY -> startIndex = 1
+                Calendar.TUESDAY -> startIndex = 2
+                Calendar.WEDNESDAY -> startIndex = 3
+                Calendar.THURSDAY -> startIndex = 4
+                Calendar.FRIDAY -> startIndex = 5
+                Calendar.SATURDAY -> startIndex = 6
+                Calendar.SUNDAY -> startIndex = 0
             }
             return startIndex
         }
@@ -184,6 +237,7 @@ class AlarmReceiver : BroadcastReceiver() {
             )
         }
     }
+
     private class ScheduleAlarm private constructor(
         @NonNull private val am: AlarmManager,
         @NonNull private val ctx: Context

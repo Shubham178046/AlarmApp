@@ -105,7 +105,7 @@ class AlarmActivity : BaseActivity(), LoadAlarmsReceiver.OnAlarmsLoadedListener 
 
     override fun onStop() {
         super.onStop()
-//        LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver!!)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver!!)
     }
 
     override fun onAlarmsLoaded(alarms: ArrayList<Alarm>?) {

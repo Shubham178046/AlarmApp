@@ -8,10 +8,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Handler
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.legacy.content.WakefulBroadcastReceiver
 import com.agppratham.demo.Constants.ALARM_ID
@@ -23,6 +24,7 @@ import com.agppratham.demo.helper.*
 class AlarmReceiver : WakefulBroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
       //  RingtoneManager.setActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE, Uri.parse(PrefUtils.getURI(context)))
+        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         val id = intent!!.getIntExtra(ALARM_ID, -1)
         val alarm = context!!.dbHelper.getAlarmWithId(id) ?: return
         if (context.isScreenOn()) {
@@ -47,10 +49,15 @@ class AlarmReceiver : WakefulBroadcastReceiver() {
                     }
                 }
 
-                val pendingIntent = PendingIntent.getActivity(context, 0, Intent(context, ReminderActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra(ALARM_ID, id)
-                }, PendingIntent.FLAG_UPDATE_CURRENT)
+                val pendingIntent = PendingIntent.getActivity(
+                    context, 0, Intent(
+                        context,
+                        ReminderActivity::class.java
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra(ALARM_ID, id)
+                    }, PendingIntent.FLAG_UPDATE_CURRENT
+                )
 
                 val builder = NotificationCompat.Builder(context, "Alarm")
                     .setSmallIcon(R.drawable.ic_alarm_vector)
@@ -60,6 +67,8 @@ class AlarmReceiver : WakefulBroadcastReceiver() {
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setFullScreenIntent(pendingIntent, true)
 
+
+                builder.setSound(notification, AudioManager.STREAM_ALARM)
                 try {
                     notificationManager.notify(ALARM_NOTIF_ID, builder.build())
                 } catch (e: Exception) {
@@ -76,9 +85,8 @@ class AlarmReceiver : WakefulBroadcastReceiver() {
      /*   if (alarmUri == null) {
             alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         }*/
-        val ringtone = RingtoneManager.getRingtone(context, Uri.parse(PrefUtils.getURI(context)))
-        ringtone.play()
-
+       // val ringtone = RingtoneManager.getRingtone(context, Uri.parse(PrefUtils.getURI(context)))
+      //  ringtone.play()
         //this will send a notification message
 
         //this will send a notification message

@@ -19,6 +19,13 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TABLE_NAME = "alarms";
 
     public static final String _ID = "_id";
+    public static final String COL_MON_SONG = "mon_song";
+    public static final String COL_TUE_SONG = "tue_song";
+    public static final String COL_WED_SONG = "wed_song";
+    public static final String COL_THRUS_SONG = "thrus_song";
+    public static final String COL_FRI_SONG = "fri_song";
+    public static final String COL_SAT_SONG = "sat_song";
+    public static final String COL_SUN_SONG = "sun_song";
     public static final String COL_TIME = "time";
     public static final String COL_LABEL = "label";
     public static final String COL_MON = "mon";
@@ -59,6 +66,13 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
                 COL_FRI + " INTEGER NOT NULL, " +
                 COL_SAT + " INTEGER NOT NULL, " +
                 COL_SUN + " INTEGER NOT NULL, " +
+                COL_MON_SONG + " TEXT, " +
+                COL_TUE_SONG + " TEXT, " +
+                COL_WED_SONG + " TEXT, " +
+                COL_THRUS_SONG + " TEXT, " +
+                COL_FRI_SONG + " TEXT, " +
+                COL_SAT_SONG + " TEXT, " +
+                COL_SUN_SONG + " TEXT, " +
                 COL_IS_ENABLED + " INTEGER NOT NULL" +
                 ");";
 
@@ -81,7 +95,7 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
 
     public int updateAlarm(Alarm alarm) {
         final String where = _ID + "=?";
-        final String[] whereArgs = new String[] { Long.toString(alarm.getId()) };
+        final String[] whereArgs = new String[]{Long.toString(alarm.getId())};
         return getWritableDatabase()
                 .update(TABLE_NAME, AlarmUtils.toContentValues(alarm), where, whereArgs);
     }
@@ -92,7 +106,7 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
 
     int deleteAlarm(long id) {
         final String where = _ID + "=?";
-        final String[] whereArgs = new String[] { Long.toString(id) };
+        final String[] whereArgs = new String[]{Long.toString(id)};
         return getWritableDatabase().delete(TABLE_NAME, where, whereArgs);
     }
 
@@ -100,7 +114,7 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
 
         Cursor c = null;
 
-        try{
+        try {
             c = getReadableDatabase().query(TABLE_NAME, null, null, null, null, null, null);
             return AlarmUtils.buildAlarmList(c);
         } finally {
@@ -108,5 +122,4 @@ public final class DatabaseHelper extends SQLiteOpenHelper {
         }
 
     }
-
 }
