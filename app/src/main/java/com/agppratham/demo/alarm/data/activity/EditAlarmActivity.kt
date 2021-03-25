@@ -222,6 +222,7 @@ class EditAlarmActivity : AppCompatActivity() {
         val time = Calendar.getInstance()
         time[Calendar.MINUTE] = ViewUtil.getTimePickerMinute(edit_alarm_time_picker)
         time[Calendar.HOUR_OF_DAY] = ViewUtil.getTimePickerHour(edit_alarm_time_picker)
+        time[Calendar.SECOND] = 0
         println("Time And TimeMills" + time.time + "*********" + time.timeInMillis)
         alarm!!.time = time.timeInMillis
         alarm.label = edit_alarm_label.getText().toString()

@@ -3,6 +3,7 @@ package com.agppratham.demo.helper
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.*
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,6 +18,7 @@ import android.os.PowerManager
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
 import android.widget.Toast
+import androidx.annotation.AnyRes
 import androidx.core.app.AlarmManagerCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -140,7 +142,11 @@ fun Context.stopAlarmSound() {
         player!!.stop()
     }
 }
-
+internal fun Context.getResourceUri(@AnyRes resourceId: Int): Uri = Uri.Builder()
+    .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+    .authority(packageName)
+    .path(resourceId.toString())
+    .build()
 fun Context.getDefaultAlarmTitle(type: Int): String {
     val alarmString = getString(R.string.alarm)
     return try {

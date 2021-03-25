@@ -1,19 +1,21 @@
 package com.agppratham.demo.alarm.data.service
 
+import android.R.attr.name
 import android.app.*
 import android.app.AlarmManager.AlarmClockInfo
 import android.content.BroadcastReceiver
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
-import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import android.util.Log
+import androidx.annotation.AnyRes
 import androidx.annotation.NonNull
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -24,14 +26,20 @@ import com.agppratham.demo.alarm.data.Alarm
 import com.agppratham.demo.alarm.data.activity.AlarmLandingPageActivity.Companion.launchIntent
 import com.agppratham.demo.alarm.data.util.AlarmUtils
 import com.agppratham.demo.helper.getHideAlarmPendingIntent
+import com.agppratham.demo.helper.getResourceUri
 import com.agppratham.demo.helper.startAlarmSound
 import java.io.File
 import java.util.*
+
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         var path: String? = ""
         val alarm: Alarm? = intent!!.getBundleExtra(BUNDLE_EXTRA)!!.getParcelable(ALARM_KEY)
+        val mUri = Uri.parse(
+            ("android.resource://"
+                    + context!!.packageName) + "/raw/" + "ring"
+        )
         if (alarm == null) {
             Log.e(
                 TAG,
@@ -43,34 +51,50 @@ class AlarmReceiver : BroadcastReceiver() {
         val calendar = Calendar.getInstance()
         val day = calendar[Calendar.DAY_OF_WEEK]
         if (day == Alarm.MON) {
-            path = alarm.moN_SONG
+            if (alarm.moN_SONG != null && !alarm.moN_SONG.equals("") && !alarm.moN_SONG.isNullOrEmpty()) {
+                path = alarm.moN_SONG
+            }
         } else if (day == Alarm.TUES) {
-            path = alarm.tueS_SONG
-
+            if (alarm.tueS_SONG != null && !alarm.tueS_SONG.equals("") && !alarm.tueS_SONG.isNullOrEmpty()) {
+                path = alarm.tueS_SONG
+            }
         } else if (day == Alarm.WED) {
-            path = alarm.weD_SONG
-
+            if (alarm.weD_SONG != null && !alarm.weD_SONG.equals("") && !alarm.weD_SONG.isNullOrEmpty()) {
+                path = alarm.weD_SONG
+            }
         } else if (day == Alarm.THURS) {
-            path = alarm.thruS_SONG
+            if (alarm.thruS_SONG != null && !alarm.thruS_SONG.equals("") && !alarm.thruS_SONG.isNullOrEmpty()) {
+                path = alarm.thruS_SONG
+            }
         } else if (day == Alarm.FRI) {
-            path = alarm.frI_SONG
-
+            if (alarm.frI_SONG != null && !alarm.frI_SONG.equals("") && !alarm.frI_SONG.isNullOrEmpty()) {
+                path = alarm.frI_SONG
+            }
         } else if (day == Alarm.SAT) {
-            path = alarm.saT_SONG
-
+            if (alarm.saT_SONG != null && !alarm.saT_SONG.equals("") && !alarm.saT_SONG.isNullOrEmpty()) {
+                path = alarm.saT_SONG
+            }
         }
         /*RingtoneManager.setActualDefaultRingtoneUri(context,RingtoneManager.TYPE_ALARM,
            Uri.parse(path))*/
         var notification: Uri? = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            notification =
-                FileProvider.getUriForFile(
-                    context!!,
-                    BuildConfig.APPLICATION_ID + ".provider",
-                    File(path)
-                )
+            if (path != null && !path.equals("") && !path.isNullOrEmpty()) {
+                notification =
+                    FileProvider.getUriForFile(
+                        context!!,
+                        BuildConfig.APPLICATION_ID + ".provider",
+                        File(path!!)
+                    )
+            } else {
+                notification = context.getResourceUri(R.raw.ring)
+            }
         } else {
-            notification = Uri.fromFile(File(path)) // 3
+            if (path != null && !path.equals("") && !path.isNullOrEmpty()) {
+                notification = Uri.fromFile(File(path!!))
+            } else {
+                notification = context.getResourceUri(R.raw.ring)
+            }
         }
         if (notification != null) {
             context!!.startAlarmSound(context, notification)
